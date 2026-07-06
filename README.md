@@ -1,7 +1,8 @@
 # video2deck
 
-動画（ローカルの MP4/MOV 等、または YouTube リンク）から、**動画を見なくても内容が分かる**単一 HTML スライドを生成する [Claude Code](https://claude.com/claude-code) スキルです。
+動画（ローカルの MP4/MOV 等、YouTube リンク、**X/Twitter の動画付きポスト**）から、**動画を見なくても内容が分かる**単一 HTML スライドを生成する [Claude Code](https://claude.com/claude-code) スキルです。
 
+- 📥 **入力は3系統** — ローカル動画ファイル／YouTube／X（Twitter）の動画付きポスト（オンライン動画の取得は yt-dlp）
 - 🎙 **ローカル文字起こし** — Apple SpeechAnalyzer をオンデバイスで実行。音源を外部サービスに送りません（会議・ゼミ・学会の録音でも安全）
 - 🖼 **場面フレーム抽出** — ffmpeg のシーン検出で、スライド投影型の動画は**映し出された全スライドを取り込み**
 - 🌏 **外国語対応** — 英語等の動画は日本語主体＋原文キーワード併記で日本語化
@@ -42,15 +43,21 @@ cp -R /tmp/v2d/plugins/video2deck/assets  ~/.claude/skills/video2deck/
 
 ## 使い方
 
-Claude Code に動画のパスか YouTube の URL を渡して指示するだけです。
+Claude Code に動画のパスか URL（YouTube／X のポスト）を渡して指示するだけです。
 
 ```
 https://youtu.be/XXXXXXXX この動画をスライドにして
 ```
 
 ```
+https://x.com/user/status/XXXXXXXX このポストの動画をスライドにして
+```
+
+```
 ~/Movies/lecture.mp4 をスライドにまとめて
 ```
+
+X の動画は字幕が無いため自動的にローカル文字起こし（SpeechAnalyzer）になります。鍵アカウント等ログインが必要なポストは、スキルが `--cookies-from-browser chrome` で取得します。
 
 `<動画名>_slides/<日本語名>_スライド.html` が生成されます。この 1 ファイルを渡せば、誰でもブラウザで閲覧できます（`src/` は後日の編集用ソース、`work/` は削除可）。
 

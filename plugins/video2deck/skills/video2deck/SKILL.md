@@ -1,6 +1,6 @@
 ---
 name: video2deck
-description: 動画（ローカルMP4/MOV等 または YouTubeリンク）から「動画を見なくても内容が分かる」HTMLスライドデッキを生成する汎用スキル。文字起こし（Apple SpeechAnalyzer）／YouTube字幕と、ffmpegによる場面フレーム抽出を組み合わせ、スライド投影型動画は映された全スライドを取り込む。外国語動画は日本語化。最終成果物はCSS・JS・画像を全部埋め込んだ単一HTMLファイル（1ファイル渡せば誰でも見られる）。Triggers on 動画をスライドに, 動画からスライド, この動画をまとめて, ウェビナーをスライド化, 講演動画の要約, 動画を見る時間がない, video to slides, video to deck, YouTubeをスライドに.
+description: 動画（ローカルMP4/MOV等、YouTubeリンク、X/Twitterの動画付きポスト）から「動画を見なくても内容が分かる」HTMLスライドデッキを生成する汎用スキル。文字起こし（Apple SpeechAnalyzer）／YouTube字幕と、ffmpegによる場面フレーム抽出を組み合わせ、スライド投影型動画は映された全スライドを取り込む。外国語動画は日本語化。最終成果物はCSS・JS・画像を全部埋め込んだ単一HTMLファイル（1ファイル渡せば誰でも見られる）。Triggers on 動画をスライドに, 動画からスライド, この動画をまとめて, ウェビナーをスライド化, 講演動画の要約, 動画を見る時間がない, video to slides, video to deck, YouTubeをスライドに, Xの動画をスライドに, ポストの動画をスライドに.
 ---
 
 # video2deck — 動画 → 要点スライドデッキ生成
@@ -14,6 +14,7 @@ description: 動画（ローカルMP4/MOV等 または YouTubeリンク）から
 - 外国語動画 → 日本語主体＋原文キーワード併記で日本語化
 - 粒度の目安：**約2分に1枚**（33分→16枚、51分→26枚程度）
 - 各スライドに元動画へのタイムスタンプ（YouTubeは該当秒への直リンク）
+- 入力は **ローカル動画ファイル／YouTube／X（Twitter）の動画付きポスト** に対応（オンライン動画の取得はいずれも yt-dlp）
 
 ## スキルのファイル配置（重要）
 
@@ -32,7 +33,7 @@ description: 動画（ローカルMP4/MOV等 または YouTubeリンク）から
 | ツール | 確認 | 無いとき |
 |---|---|---|
 | ffmpeg / ffprobe | `which ffmpeg ffprobe` | `brew install ffmpeg` |
-| yt-dlp（YouTube時のみ） | `which yt-dlp` | `brew install yt-dlp` |
+| yt-dlp（YouTube・X等のURL時のみ） | `which yt-dlp` | `brew install yt-dlp` |
 | Swift（文字起こしビルド用） | `which swiftc` | Xcode Command Line Tools（`xcode-select --install`）。**macOS 26+ 必須**（SpeechAnalyzer API） |
 | Pillow（画像圧縮・任意） | `python3 -c "import PIL"` | `pip3 install Pillow` |
 
@@ -40,7 +41,7 @@ description: 動画（ローカルMP4/MOV等 または YouTubeリンク）から
 
 ## 出力構成
 
-保存先：**動画ファイルと同じディレクトリ**に `<動画ベース名>_slides/`。YouTube の場合はカレントプロジェクト内に `<タイトルの短いslug>_slides/`。
+保存先：**動画ファイルと同じディレクトリ**に `<動画ベース名>_slides/`。YouTube・X等のURLの場合はカレントプロジェクト内に `<タイトルの短いslug>_slides/`。
 
 **最終成果物は単一の自己完結HTML**（CSS・JS・全画像を埋め込み済み。このファイル1つを渡せば誰でもブラウザで見られる）。
 
@@ -76,7 +77,16 @@ yt-dlp -f "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b" -o "work/video.m
 
 字幕の品質判定：手動字幕（`subtitles`）があればそれを使う。自動字幕（`automatic_captions`）しか無い場合は冒頭を読んで判定し、**断片の重複だらけ・意味が取れない場合は字幕を捨てて音声から SpeechAnalyzer で文字起こし**する（DL済み動画から音声を抽出すればよい）。日本語動画は自動字幕があっても、句読点・固有名詞の精度でSpeechAnalyzerが上回ることが多いので、原則ローカル文字起こしをベースにし、固有名詞だけ字幕と突き合わせて校正するとよい。
 
-### 2. 文字起こし（ローカル動画、または字幕が使えないYouTube）
+**C. X（Twitter）の動画付きポスト**（`x.com/…/status/…` / `twitter.com/…`）：
+
+yt-dlp がそのまま対応しているので、メタデータ・映像取得はBと同じコマンドでよい。Bとの違いだけ押さえる：
+
+- **字幕は存在しない** → 字幕取得はスキップし、常にステップ2の SpeechAnalyzer 文字起こしへ
+- 鍵アカウント・ログイン必須のポストは `--cookies-from-browser chrome` を付けて取得する
+- タイトルはポスト本文の先頭から生成されて長いことが多い → `work/meta.json` の本文から**内容を表す短いslug**を自分で決める
+- タイムスタンプの秒指定リンクは張れない（ステップ8参照）
+
+### 2. 文字起こし（ローカル動画・Xの動画、または字幕が使えないYouTube）
 
 初回のみ、同梱ソースから文字起こしツールをビルドする（`swiftc` で数秒。2回目以降は再利用）：
 
@@ -198,6 +208,7 @@ python3 "$SKILL/scripts/extract_frames.py" VIDEO work/frames
 
 - 画像と文字量のバランス：画像が横長スライドなら標準の `.content`、文字が多いときは `.content.text-wide`
 - タイムスタンプはそのスライドの**話が始まる時刻**（フレーム時刻でよい）。YouTube は `https://youtu.be/<id>?t=<秒>`
+- **X（Twitter）の動画は秒指定リンク非対応**なので、ローカル動画と同じく `<span class="ts">▶ 12:14</span>` のテキスト表記にする（表紙にはポストURLへのリンクを載せる）
 
 ### 9. 単一ファイル化（最終成果物の生成）
 
