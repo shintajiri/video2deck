@@ -1,9 +1,9 @@
 ---
-name: video-to-slides
-description: 動画（ローカルMP4/MOV等 または YouTubeリンク）から「動画を見なくても内容が分かる」HTMLスライドデッキを生成する汎用スキル。文字起こし（Apple SpeechAnalyzer）／YouTube字幕と、ffmpegによる場面フレーム抽出を組み合わせ、スライド投影型動画は映された全スライドを取り込む。外国語動画は日本語化。最終成果物はCSS・JS・画像を全部埋め込んだ単一HTMLファイル（1ファイル渡せば誰でも見られる）。Triggers on 動画をスライドに, 動画からスライド, この動画をまとめて, ウェビナーをスライド化, 講演動画の要約, 動画を見る時間がない, video to slides, YouTubeをスライドに.
+name: video2deck
+description: 動画（ローカルMP4/MOV等 または YouTubeリンク）から「動画を見なくても内容が分かる」HTMLスライドデッキを生成する汎用スキル。文字起こし（Apple SpeechAnalyzer）／YouTube字幕と、ffmpegによる場面フレーム抽出を組み合わせ、スライド投影型動画は映された全スライドを取り込む。外国語動画は日本語化。最終成果物はCSS・JS・画像を全部埋め込んだ単一HTMLファイル（1ファイル渡せば誰でも見られる）。Triggers on 動画をスライドに, 動画からスライド, この動画をまとめて, ウェビナーをスライド化, 講演動画の要約, 動画を見る時間がない, video to slides, video to deck, YouTubeをスライドに.
 ---
 
-# video-to-slides — 動画 → 要点スライドデッキ生成
+# video2deck — 動画 → 要点スライドデッキ生成
 
 ## ゴール
 

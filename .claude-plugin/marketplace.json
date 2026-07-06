@@ -1,13 +1,13 @@
 {
-  "name": "video-to-slides",
+  "name": "video2deck",
   "owner": {
     "name": "Shintaro Tajiri",
     "email": "shintajiri@gmail.com"
   },
   "plugins": [
     {
-      "name": "video-to-slides",
-      "source": "./plugins/video-to-slides",
+      "name": "video2deck",
+      "source": "./plugins/video2deck",
       "description": "動画（ローカルMP4/MOV等 または YouTubeリンク）から、動画を見なくても内容が分かる単一HTMLスライドを生成する。SpeechAnalyzerによるローカル文字起こし＋ffmpegの場面フレーム抽出を組み合わせ、スライド投影型は全スライドを取り込み、外国語動画は日本語化する。",
       "version": "1.0.0"
     }
