@@ -1,0 +1,10 @@
+# ビルド生成物（初回に swiftc でビルドされる）
+transcribe-speechanalyzer
+*.o
+
+# 中間物・生成デッキ
+work/
+*_slides/
+
+# OS
+.DS_Store

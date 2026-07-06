@@ -1,0 +1,224 @@
+/* ============================================================
+   Slide deck — shared styles
+   画面投影とPDF書き出し（印刷）の両対応。1スライド=1ページ。
+   ============================================================ */
+
+:root {
+  --blue: #1a73e8;
+  --blue-dark: #174ea6;
+  --ink: #202124;
+  --muted: #5f6368;
+  --line: #dadce0;
+  --bg: #f1f3f4;
+  --paper: #ffffff;
+  --accent: #34a853;
+  --warn: #ea8600;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
+
+body {
+  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN",
+    "Hiragino Sans", Meiryo, "Noto Sans JP", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- スライド共通 ---- */
+.slide {
+  position: relative;
+  width: 100vw;
+  min-height: 100vh;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4.5vh 5vw 7vh;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.slide .kicker {
+  color: var(--blue);
+  font-weight: 700;
+  font-size: clamp(13px, 1.4vw, 18px);
+  letter-spacing: .04em;
+  margin-bottom: 8px;
+}
+
+.slide h2 {
+  font-size: clamp(22px, 3vw, 40px);
+  line-height: 1.3;
+  font-weight: 800;
+  margin-bottom: 22px;
+  color: var(--ink);
+}
+.slide h2 .em { color: var(--blue); }
+
+/* 画像 + 要点の2カラム */
+.content {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: clamp(20px, 3vw, 48px);
+  align-items: center;
+  flex: 1;
+}
+.content.text-wide { grid-template-columns: 1fr 1.3fr; }
+
+.shot {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.14);
+  background: #000;
+  display: block;
+}
+
+.points { font-size: clamp(14px, 1.45vw, 20px); }
+.points li {
+  list-style: none;
+  position: relative;
+  padding-left: 1.5em;
+  margin-bottom: .85em;
+}
+.points li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: .62em;
+  width: .55em; height: .55em;
+  border-radius: 2px;
+  background: var(--blue);
+}
+.points li b { color: var(--blue-dark); }
+.points li .sub {
+  display: block;
+  color: var(--muted);
+  font-size: .85em;
+  padding-left: 0;
+  margin-top: 2px;
+}
+.points li.warn::before { background: var(--warn); }
+.points li.ok::before { background: var(--accent); }
+
+/* 表紙 */
+.cover {
+  background: linear-gradient(135deg, #1a73e8 0%, #174ea6 60%, #0b3d91 100%);
+  color: #fff;
+  align-items: flex-start;
+}
+.cover .brand {
+  font-weight: 700; letter-spacing: .03em; opacity: .9;
+  margin-bottom: 24px; font-size: clamp(14px, 1.6vw, 20px);
+}
+.cover h1 {
+  font-size: clamp(30px, 5vw, 64px);
+  line-height: 1.2; font-weight: 800; margin-bottom: 24px;
+  max-width: 18em;
+}
+.cover .lead { font-size: clamp(15px, 1.8vw, 24px); max-width: 32em; opacity: .95; }
+.cover .meta {
+  margin-top: 36px; font-size: clamp(13px, 1.4vw, 18px);
+  opacity: .9; line-height: 2;
+}
+.cover .meta .tag {
+  display: inline-block; background: rgba(255,255,255,.18);
+  padding: 2px 12px; border-radius: 999px; margin-right: 8px;
+}
+
+/* セクション扉 */
+.divider { background: var(--ink); color: #fff; }
+.divider h2 { color: #fff; font-size: clamp(26px, 4vw, 52px); }
+.divider .kicker { color: #8ab4f8; }
+
+/* まとめ（テキストのみ） */
+.full-text { max-width: 60em; }
+.full-text .points { font-size: clamp(15px, 1.6vw, 22px); }
+
+/* フッター（ページ番号） */
+.foot {
+  position: absolute;
+  bottom: 2.4vh; left: 5vw; right: 5vw;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: clamp(11px, 1.1vw, 14px); color: var(--muted);
+}
+.cover .foot, .divider .foot { color: rgba(255,255,255,.85); }
+.foot .src { font-weight: 600; }
+
+/* 元動画へのタイムスタンプ（フッター内） */
+.foot .ts {
+  color: var(--blue);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.foot a.ts:hover { text-decoration: underline; }
+.cover .foot .ts, .divider .foot .ts { color: #8ab4f8; }
+
+/* 原文キーワード併記（外国語動画用） */
+.points li .orig {
+  color: var(--muted);
+  font-size: .82em;
+  font-style: italic;
+}
+
+/* ---- ナビUI（画面のみ） ---- */
+.nav {
+  position: fixed; right: 18px; bottom: 18px; z-index: 50;
+  display: flex; gap: 8px; align-items: center;
+}
+.nav button {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: none; background: var(--blue); color: #fff;
+  font-size: 20px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.25);
+}
+.nav button:hover { background: var(--blue-dark); }
+.nav .counter {
+  background: rgba(32,33,36,.85); color: #fff;
+  padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+}
+.progress {
+  position: fixed; top: 0; left: 0; height: 4px;
+  background: var(--blue); z-index: 60; width: 0; transition: width .2s;
+}
+.hint {
+  position: fixed; left: 18px; bottom: 18px; z-index: 50;
+  background: rgba(32,33,36,.8); color: #fff;
+  padding: 6px 12px; border-radius: 8px; font-size: 12px;
+  opacity: .9;
+}
+
+/* ---- 印刷 / PDF ---- */
+@media print {
+  @page { size: A4 landscape; margin: 0; }
+  html { scroll-snap-type: none; }
+  body { background: #fff; }
+  /* 背景色・グラデーションを印刷に反映 */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .nav, .progress, .hint { display: none !important; }
+  .slide {
+    width: 100%; min-height: auto; height: 100vh;
+    overflow: hidden;                 /* 微小なはみ出しで2ページ化しないよう固定 */
+    padding: 4vh 5vw 5.5vh;
+    page-break-after: always; break-after: page;
+    page-break-inside: avoid; break-inside: avoid;
+    border-bottom: none;
+  }
+  .slide:last-of-type { page-break-after: avoid; break-after: avoid; }
+  .slide h2 { margin-bottom: 14px; font-size: clamp(20px, 2.6vw, 32px); }
+  .slide .kicker { margin-bottom: 4px; }
+  .shot { box-shadow: none; width: 100%; max-height: 64vh; object-fit: contain; }
+  .content { gap: 3vw; align-items: center; }
+  .points { font-size: clamp(13px, 1.3vw, 18px); }
+  .points li { margin-bottom: .5em; }
+  .foot { bottom: 1.6vh; }
+}
+
+/* 狭い画面 */
+@media (max-width: 760px) {
+  .content, .content.text-wide { grid-template-columns: 1fr; gap: 16px; }
+  .slide { padding: 3vh 6vw 8vh; }
+}
