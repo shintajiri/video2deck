@@ -1,7 +1,7 @@
 ---
 effort: medium
 name: video2deck
-description: 動画（ローカルMP4/MOV等、YouTubeリンク、X/Twitterの動画付きポスト）から「動画を見なくても内容が分かる」HTMLスライドデッキを生成する汎用スキル。文字起こし（Apple SpeechAnalyzer）／YouTube字幕と、ffmpegによる場面フレーム抽出を組み合わせ、スライド投影型動画は映された全スライドを取り込む。外国語動画は日本語化。最終成果物はCSS・JS・画像を全部埋め込んだ単一HTMLファイル（1ファイル渡せば誰でも見られる）。Triggers on 動画をスライドに, 動画からスライド, この動画をまとめて, ウェビナーをスライド化, 講演動画の要約, 動画を見る時間がない, video to slides, video to deck, YouTubeをスライドに, Xの動画をスライドに, ポストの動画をスライドに.
+description: 動画（ローカルMP4/MOV等、YouTubeリンク、X/Twitterの動画付きポスト）から「動画を見なくても内容が分かる」HTMLスライドデッキを生成する汎用スキル。文字起こし（Gemini API＝Win/Mac/Linux、または Apple SpeechAnalyzer＝macOS 26+ ローカル。どちらを使うか毎回選ぶ）／YouTube字幕と、ffmpegによる場面フレーム抽出を組み合わせ、スライド投影型動画は映された全スライドを取り込む。外国語動画は日本語化。最終成果物はCSS・JS・画像を全部埋め込んだ単一HTMLファイル（1ファイル渡せば誰でも見られる）。Triggers on 動画をスライドに, 動画からスライド, この動画をまとめて, ウェビナーをスライド化, 講演動画の要約, 動画を見る時間がない, video to slides, video to deck, YouTubeをスライドに, Xの動画をスライドに, ポストの動画をスライドに.
 ---
 
 # video2deck — 動画 → 要点スライドデッキ生成
@@ -24,7 +24,8 @@ description: 動画（ローカルMP4/MOV等、YouTubeリンク、X/Twitterの�
 
 - `$SKILL/scripts/extract_frames.py` — 場面フレーム抽出
 - `$SKILL/scripts/pack_single_html.py` — 単一HTML化パッカー
-- `$SKILL/scripts/transcribe-speechanalyzer.swift` — ローカル文字起こしツールのソース
+- `$SKILL/scripts/transcribe_gemini.py` — Gemini API 文字起こし（Windows / macOS / Linux）
+- `$SKILL/scripts/transcribe-speechanalyzer.swift` — Apple SpeechAnalyzer ローカル文字起こしのソース（macOS 26+）
 - `$SKILL/assets/deck.css`, `$SKILL/assets/deck.js` — デッキの見た目とナビ
 
 以降のコマンド例の `$SKILL` は、この実際のパスに置き換えて実行すること。
@@ -33,12 +34,15 @@ description: 動画（ローカルMP4/MOV等、YouTubeリンク、X/Twitterの�
 
 | ツール | 確認 | 無いとき |
 |---|---|---|
-| ffmpeg / ffprobe | `which ffmpeg ffprobe` | `brew install ffmpeg` |
-| yt-dlp（YouTube・X等のURL時のみ） | `which yt-dlp` | `brew install yt-dlp` |
-| Swift（文字起こしビルド用） | `which swiftc` | Xcode Command Line Tools（`xcode-select --install`）。**macOS 26+ 必須**（SpeechAnalyzer API） |
-| Pillow（コンタクトシート生成・**実質必須**） | `python3 -c "import PIL"` | `pip3 install Pillow` |
+| ffmpeg / ffprobe | `which ffmpeg ffprobe` | macOS `brew install ffmpeg` ／ Windows `winget install Gyan.FFmpeg` |
+| yt-dlp（YouTube・X等のURL時のみ） | `which yt-dlp` | macOS `brew install yt-dlp` ／ Windows `winget install yt-dlp` |
+| Python 3.9+ ＋ Pillow（コンタクトシート生成・**実質必須**） | `python3 -c "import PIL"` | `pip3 install Pillow`（Windows は `python` / `pip`） |
+| 文字起こしエンジン（**ステップ2でどちらか選ぶ**） | 下記 | Gemini: API キー（環境変数 `GEMINI_API_KEY` か `~/.config/gemini/api_key`）／ SpeechAnalyzer: **macOS 26+** と `swiftc`（`xcode-select --install`） |
 
-**音源・映像は外部サービスにアップロードしない。文字起こしは常にローカル（SpeechAnalyzer）で完結させる。** 第三者の発言を含む録音（会議・ゼミ・学会）でも安全なように、クラウド文字起こしサービスに音源を送らないこと。macOS 26 未満や非Macでどうしても動かせない場合のみ、ローカルWhisper（`mlx_whisper` 等）にフォールバックする（その場合も音源は外に出さない）。
+Windows では以降のコマンド例を Git Bash（Claude Code が使うシェル）でそのまま実行できる。
+`python3` が無ければ `python` に読み替える。
+
+**音源をクラウドに送るのは、ステップ2でユーザーが Gemini を選んだときだけ。** それ以外の外部サービス（他の文字起こしAPI・動画アップロード先）に音源・映像を送らない。SpeechAnalyzer を選んだ場合は端末内で完結させる。macOS 26 未満・非Macで Gemini も使えない場合のみ、ローカルWhisper（`mlx_whisper` 等）にフォールバックする（その場合も音源は外に出さない）。
 
 ## 出力構成
 
@@ -76,18 +80,57 @@ yt-dlp --skip-download --write-subs --write-auto-subs --sub-langs "ja,en" \
 yt-dlp -f "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b" -o "work/video.mp4" "URL"
 ```
 
-字幕の品質判定：手動字幕（`subtitles`）があればそれを使う。自動字幕（`automatic_captions`）しか無い場合は冒頭を読んで判定し、**断片の重複だらけ・意味が取れない場合は字幕を捨てて音声から SpeechAnalyzer で文字起こし**する（DL済み動画から音声を抽出すればよい）。日本語動画は自動字幕があっても、句読点・固有名詞の精度でSpeechAnalyzerが上回ることが多いので、原則ローカル文字起こしをベースにし、固有名詞だけ字幕と突き合わせて校正するとよい。
+字幕の品質判定：手動字幕（`subtitles`）があればそれを使う。自動字幕（`automatic_captions`）しか無い場合は冒頭を読んで判定し、**断片の重複だらけ・意味が取れない場合は字幕を捨てて、DL済み動画からステップ2の文字起こし**にかける。日本語動画は自動字幕があっても、句読点・固有名詞の精度でステップ2のエンジン（特に Gemini）が上回ることが多いので、原則ステップ2の文字起こしをベースにし、固有名詞だけ字幕と突き合わせて校正するとよい。
 
 **C. X（Twitter）の動画付きポスト**（`x.com/…/status/…` / `twitter.com/…`）：
 
 yt-dlp がそのまま対応しているので、メタデータ・映像取得はBと同じコマンドでよい。Bとの違いだけ押さえる：
 
-- **字幕は存在しない** → 字幕取得はスキップし、常にステップ2の SpeechAnalyzer 文字起こしへ
+- **字幕は存在しない** → 字幕取得はスキップし、常にステップ2の文字起こしへ
 - 鍵アカウント・ログイン必須のポストは `--cookies-from-browser chrome` を付けて取得する
 - タイトルはポスト本文の先頭から生成されて長いことが多い → `work/meta.json` の本文から**内容を表す短いslug**を自分で決める
 - タイムスタンプの秒指定リンクは張れない（ステップ8参照）
 
 ### 2. 文字起こし（ローカル動画・Xの動画、または字幕が使えないYouTube）
+
+#### 2-0. エンジンを選ぶ（毎回）
+
+エンジンは2つ。**ユーザーが指定していなければ、作業を始める前に AskUserQuestion で1回だけ聞く**（推奨を先頭に）。
+
+| | **Gemini API**（推奨） | **Apple SpeechAnalyzer** |
+|---|---|---|
+| 動く環境 | Windows / macOS / Linux | **macOS 26+ のみ** |
+| 音声の行き先 | Google のクラウドに送る | **端末内で完結**（オフライン可） |
+| 固有名詞・専門用語 | 強い（文脈で解決する） | 弱め（後で校正が要る） |
+| 読みやすさ | 話者が変わるたびに改行 | 1段落に押し込みがち |
+| 速さ | 実時間の30〜55倍速 | 実時間の約140倍速（83分≒2分半） |
+| 費用 | 有料枠。100分で数十円程度 | 無料 |
+| 必要なもの | API キー・ffmpeg | swiftc（初回ビルド）・ffmpeg |
+
+判定の目安：
+
+- **音源を外に出せない**（第三者の発言を含む会議・ゼミ・学生の録音で、組織の規程が許さない）→ SpeechAnalyzer
+- それ以外 → Gemini。仕上がりがそのまま資料になる
+- **Windows / Linux では選択肢を出さず Gemini 一択**。キーが無ければ設定手順（下記）を案内して止まる
+- Gemini API の**無料枠は Google の規約で機密・個人情報の送信が禁止**されている。有料枠（Tier 1 以上）で使う
+
+どちらの出力もタイムスタンプ付き1発話1行で、以降の手順は共通（Gemini は `[MM:SS]`、SpeechAnalyzer は `[HH:MM:SS]`）。
+
+#### 2-A. Gemini API（Windows / macOS / Linux）
+
+キーは環境変数 `GEMINI_API_KEY`、または `~/.config/gemini/api_key`（Windows は `%USERPROFILE%\.config\gemini\api_key`）にキーだけを1行で書く。発行は https://aistudio.google.com/apikey 。
+
+```sh
+python3 "$SKILL/scripts/transcribe_gemini.py" "input.mp4" transcript.txt --lang ja   # 英語は --lang en
+```
+
+- 動画をそのまま渡してよい（内部で 64kbps モノラル m4a に落として送る）
+- 20MB を超えるぶんは Files API に上げて **1回で送る**。分割しない（分割すると後半が前半の固有名詞を知らないまま処理される）。9.5時間超だけ `--split`
+- 送った音声は処理後にサーバから削除する
+- 30分超は `run_in_background: true` で実行し完了を待つ
+- 人名は滑らかに誤る（読みが同じ別の漢字を当てる）。**登壇者スライド・タイトルカードの表記が一次資料**。デッキに書く名前は画面側を採る
+
+#### 2-B. Apple SpeechAnalyzer（macOS 26+・ローカル完結）
 
 初回のみ、同梱ソースから文字起こしツールをビルドする（`swiftc` で数秒。2回目以降は再利用）：
 
@@ -99,9 +142,9 @@ ffmpeg -hide_banner -loglevel error -nostats -y -i "input" -ac 1 -ar 16000 -c:a 
 "$BIN" work/audio.wav transcript.txt ja-JP   # 英語は en-US
 ```
 
-- 30分超は `run_in_background: true` で実行し完了を待つ（83分≒2分半で処理される）。初回は対象 locale のモデルを自動DLする
+- 30分超は `run_in_background: true` で実行し完了を待つ。初回は対象 locale のモデルを自動DLする
 - 言語が不明なら冒頭2分だけ切り出して `ja-JP` で試し、破綻していれば `en-US` 等で再試行してから全編を回す
-- 出力は `[HH:MM:SS]` 付き1セグメント1行。このタイムスタンプが後のフレーム対応付けの鍵
+- 固有名詞の誤認識が残る（「機関別認証評価」「3ポリ」のような専門語）。重要語は文脈と画面で校正する
 
 ### 3. フレーム抽出
 
@@ -183,7 +226,7 @@ Google 管理コンソールのような**白背景でレイアウトの似た�
 
 - **points には「画像の説明」ではなく「そこで話された内容」を書く**。画像に書かれていない口頭の補足・数字・注意点を優先する
 - デッキ構成：表紙（.cover）→ 必要ならアジェンダ → 本文（1投影スライド=1枚）→ 大きな話題の変わり目に扉（.divider）→ まとめ（.full-text）
-- 表紙には動画タイトル・登壇者・動画の長さ・「文字起こし（Apple SpeechAnalyzer）をもとに再構成」等の生成方法を記載
+- 表紙には動画タイトル・登壇者・動画の長さ・「文字起こし（Gemini API／Apple SpeechAnalyzer）をもとに再構成」のように**実際に使ったエンジン名**で生成方法を記載
 
 ### 7. 外国語動画の日本語化
 
@@ -214,7 +257,7 @@ Google 管理コンソールのような**白背景でレイアウトの似た�
   <p class="lead">（この動画が何の話か2〜3文）</p>
   <div class="meta">
     <span class="tag">登壇</span>（登壇者）<br>
-    <span class="tag">約NN分</span> 動画の文字起こし（Apple SpeechAnalyzer）をもとに要点を再構成
+    <span class="tag">約NN分</span> 動画の文字起こし（使ったエンジン名）をもとに要点を再構成
   </div>
   <div class="foot"><span class="src">（出典）</span><span>1 / N</span></div>
 </section>
@@ -285,4 +328,4 @@ python3 "$SKILL/scripts/pack_single_html.py" \
 
 ### 11. 報告
 
-**配布は単一HTMLファイル1つでよい**ことを明示しつつ、出力パス・スライド枚数・動画の長さ・文字起こし方式（SpeechAnalyzer / YouTube字幕）・外国語なら翻訳方針・取りこぼし確認の結果を報告する。`work/` は削除してよい旨も伝える。
+**配布は単一HTMLファイル1つでよい**ことを明示しつつ、出力パス・スライド枚数・動画の長さ・文字起こし方式（Gemini / SpeechAnalyzer / YouTube字幕）・外国語なら翻訳方針・取りこぼし確認の結果を報告する。`work/` は削除してよい旨も伝える。
