@@ -139,9 +139,17 @@ body {
 .full-text .points { font-size: clamp(15px, 1.6vw, 22px); }
 
 /* フッター（ページ番号） */
+/* 出典・タイムスタンプの行。
+   2026-09-06: 画面表示のとき .nav（右下の送りボタン群）が右端のタイムスタンプに
+   被っていた（このスキルで作る全デッキで発生）。
+
+   最初 right: calc(5vw + 116px) にしたが、5vw はビューポート幅で縮むのに
+   .nav の幅は固定168px なので、1440px でだけ2px の余裕で通り、1280px 以下で再び
+   重なっていた。**vw に依存させず、実測幅（168px）＋右余白(18px)＋隙間(16px) を
+   固定pxで引く。** 印刷時は .nav が消えるので @media print で元に戻す。 */
 .foot {
   position: absolute;
-  bottom: 2.4vh; left: 5vw; right: 5vw;
+  bottom: 2.4vh; left: 5vw; right: 202px;
   display: flex; justify-content: space-between; align-items: center;
   font-size: clamp(11px, 1.1vw, 14px); color: var(--muted);
 }
@@ -184,12 +192,19 @@ body {
   position: fixed; top: 0; left: 0; height: 4px;
   background: var(--blue); z-index: 60; width: 0; transition: width .2s;
 }
+/* 操作ヒント。左下は .foot（出典・タイムスタンプ）が使うので右上に置く。
+   2026-09-06: 左下固定だと .foot の出典テキストに重なっていた（全デッキで発生）。
+   数秒で自動的に薄くなり、マウスを乗せると戻る。 */
 .hint {
-  position: fixed; left: 18px; bottom: 18px; z-index: 50;
+  position: fixed; right: 18px; top: 18px; z-index: 50;
   background: rgba(32,33,36,.8); color: #fff;
   padding: 6px 12px; border-radius: 8px; font-size: 12px;
   opacity: .9;
+  transition: opacity .6s ease;
+  animation: hint-fade 1s ease 6s forwards;
 }
+.hint:hover { opacity: .95; animation: none; }
+@keyframes hint-fade { to { opacity: .18; } }
 
 /* ---- 印刷 / PDF ---- */
 @media print {
@@ -199,6 +214,7 @@ body {
   /* 背景色・グラデーションを印刷に反映 */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .nav, .progress, .hint { display: none !important; }
+  .foot { right: 5vw; }              /* ナビが消えるので右の逃げも戻す */
   .slide {
     width: 100%; min-height: auto; height: 100vh;
     overflow: hidden;                 /* 微小なはみ出しで2ページ化しないよう固定 */
@@ -217,8 +233,10 @@ body {
   .foot { bottom: 1.6vh; }
 }
 
-/* 狭い画面 */
-@media (max-width: 760px) {
+/* 狭い画面（画面表示のみ。screen を付けないと、この規則が後ろにあるぶん
+   印刷時に @media print の2カラム指定を上書きし、PDFで画像と要点が縦積みに
+   なって1ページからはみ出す） */
+@media screen and (max-width: 760px) {
   .content, .content.text-wide { grid-template-columns: 1fr; gap: 16px; }
   .slide { padding: 3vh 6vw 8vh; }
 }

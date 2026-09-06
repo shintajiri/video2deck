@@ -23,6 +23,7 @@ Output:
 """
 
 import argparse
+import math
 import re
 import subprocess
 import sys
@@ -31,7 +32,7 @@ from pathlib import Path
 
 def run(cmd, **kw):
     try:
-        return subprocess.run(cmd, check=True, capture_output=True, text=True, **kw)
+        return subprocess.run(cmd, check=True, capture_output=True, text=True, errors="replace", **kw)
     except subprocess.CalledProcessError as e:
         sys.stderr.write(f"command failed: {' '.join(cmd)}\n{e.stderr[-2000:]}\n")
         raise
@@ -124,6 +125,57 @@ def dedup_hashes(paths):
     return dupes
 
 
+
+def make_contact_sheets(rows, outdir, cols=4, thumb_w=400, per_sheet=32):
+    """全フレームを一覧画像（コンタクトシート）にまとめる。
+
+    なぜ必要か: フレームを1枚ずつ Read で目視すると、34枚で約42,000トークン使う。
+    一覧にすると同じ34枚が約4,700トークンで済む（実測89%削減）。
+
+    既定を4列400pxにしている理由（2026-09-06）: 最初は5列320pxにしたが、
+    日本語スライドの本文が読めず、別スライドを同一と誤読する事故が出た。
+    400pxなら箇条書きの本文まで判読できる。トークンは3,000→4,700に増えるが、
+    個別読み（42,000）に対しては依然89%減で、判断を誤るコストのほうが高い。
+    しかも「スライドの切り替わりが全部捕捉されているか」は、並べて見るほうが速い。
+    採用候補を絞ってから、その数枚だけ原寸で Read すればよい。
+
+    各サムネイルには連番と時刻を焼き込むので、一覧を見たまま
+    「3, 7, 12番を採用」と指定できる。
+    """
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        sys.stderr.write("warn: Pillow が無いのでコンタクトシートを作りません "
+                         "(pip3 install Pillow)\n")
+        return []
+
+    made = []
+    th = int(thumb_w * 9 / 16)
+    label_h = 24
+    for sheet_i in range(0, len(rows), per_sheet):
+        chunk = rows[sheet_i:sheet_i + per_sheet]
+        nrow = math.ceil(len(chunk) / cols)
+        sheet = Image.new("RGB", (cols * thumb_w, nrow * (th + label_h)), "white")
+        d = ImageDraw.Draw(sheet)
+        for j, (idx, t, hms, name, score) in enumerate(chunk):
+            fp = outdir / name
+            if not fp.exists():
+                continue
+            try:
+                im = Image.open(fp).convert("RGB").resize((thumb_w, th))
+            except Exception:
+                continue
+            x, y = (j % cols) * thumb_w, (j // cols) * (th + label_h)
+            sheet.paste(im, (x, y))
+            d.rectangle([x, y, x + thumb_w - 1, y + th - 1], outline="#888888")
+            d.text((x + 6, y + th + 5), f"{idx:>3}  {hms}", fill="#000000")
+        n = sheet_i // per_sheet + 1
+        out = outdir / (f"contact_{n:02d}.jpg" if len(rows) > per_sheet else "contact.jpg")
+        sheet.save(out, quality=72, optimize=True)
+        made.append(out)
+    return made
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
@@ -134,6 +186,12 @@ def main():
     ap.add_argument("--offset", type=float, default=0.6)
     ap.add_argument("--at", default="")
     ap.add_argument("--uniform-gap", type=float, default=120.0)
+    ap.add_argument("--no-contact", action="store_true",
+                    help="コンタクトシート（一覧画像）を作らない。既定では作る")
+    ap.add_argument("--contact-cols", type=int, default=4,
+                    help="コンタクトシートの列数。少ないほど大きく読める（既定4）")
+    ap.add_argument("--contact-width", type=int, default=400,
+                    help="サムネイル幅px。文字が小さいスライドは 540 まで上げてよい（既定400）")
     args = ap.parse_args()
 
     video = Path(args.video)
@@ -189,6 +247,15 @@ def main():
         f"frames saved: {len(rows)} (dup-marked: {n_dup})"
     )
     print(f"list: {tsv}")
+
+    if not args.no_contact:
+        sheets = make_contact_sheets(rows, outdir, cols=args.contact_cols,
+                                     thumb_w=args.contact_width)
+        for sh in sheets:
+            print(f"contact sheet: {sh}")
+        if sheets:
+            print("  → まず このコンタクトシートだけを Read で見る。"
+                  "個別フレームを1枚ずつ読まない（トークンが約14倍かかる）")
 
 
 if __name__ == "__main__":

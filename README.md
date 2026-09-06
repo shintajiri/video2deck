@@ -5,6 +5,7 @@
 - 📥 **入力は3系統** — ローカル動画ファイル／YouTube／X（Twitter）の動画付きポスト（オンライン動画の取得は yt-dlp）
 - 🎙 **ローカル文字起こし** — Apple SpeechAnalyzer をオンデバイスで実行。音源を外部サービスに送りません（会議・ゼミ・学会の録音でも安全）
 - 🖼 **場面フレーム抽出** — ffmpeg のシーン検出で、スライド投影型の動画は**映し出された全スライドを取り込み**
+- 🗂 **コンタクトシート** — 抽出フレームを連番・時刻入りの一覧画像にまとめ、Claude はまずそれ1枚だけを見る（個別に読む場合と比べてトークン約89%減、実測）
 - 🌏 **外国語対応** — 英語等の動画は日本語主体＋原文キーワード併記で日本語化
 - 🔗 **タイムスタンプ** — 各スライドから元動画（YouTube は該当秒）へ
 - 📦 **単一ファイル出力** — CSS・JS・画像を全部埋め込んだ HTML 1 つ。相手はダブルクリックするだけ
@@ -13,7 +14,7 @@
 
 - **macOS 26 以降**（SpeechAnalyzer API）＋ Xcode Command Line Tools（`xcode-select --install`）
 - `ffmpeg` / `yt-dlp` … `brew install ffmpeg yt-dlp`
-- Pillow（画像圧縮・任意）… `pip3 install Pillow`
+- Pillow（コンタクトシート生成・実質必須）… `pip3 install Pillow`
 
 macOS 26 未満・非 Mac では文字起こし（SpeechAnalyzer）が動きません。
 
@@ -67,7 +68,7 @@ X の動画は字幕が無いため自動的にローカル文字起こし（Spe
 
 | ファイル | 役割 |
 |---|---|
-| `scripts/extract_frames.py` | ffmpeg シーン検出でフレーム抽出、重複マーク、`frames.tsv` 出力 |
+| `scripts/extract_frames.py` | ffmpeg シーン検出でフレーム抽出、重複マーク、`frames.tsv` 出力、コンタクトシート `contact.jpg` 生成（`--no-contact` で無効化） |
 | `scripts/pack_single_html.py` | 分割ソースを単一 HTML に固める（画像は base64 埋め込み・再圧縮） |
 | `scripts/transcribe-speechanalyzer.swift` | SpeechAnalyzer 文字起こしツールのソース（初回に `swiftc` でビルド） |
 | `assets/deck.css` `assets/deck.js` | デッキの見た目とキーボードナビ |
@@ -75,3 +76,9 @@ X の動画は字幕が無いため自動的にローカル文字起こし（Spe
 ## ライセンス
 
 MIT License
+
+## 更新履歴
+
+- **1.2.0**（2026-09-06）— フレーム一覧のコンタクトシート化（個別 Read の約1/10 のトークンで全体を判定）。白背景で似たレイアウトのスライドがシーン検出をすり抜ける問題への手順（transcript の話題転換から `--at` で狙い撃ち）。デッキ CSS の修正：右下ナビと出典行の重なり、操作ヒントを右上に移動、印刷時に狭幅レイアウトが効いて2カラムが崩れる問題。
+- 1.1.0 — X（Twitter）の動画付きポストを入力に追加
+- 1.0.0 — 初版
