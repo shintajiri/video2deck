@@ -1,7 +1,7 @@
 {
   "name": "video2deck",
   "description": "動画（ローカルMP4/MOV等、YouTubeリンク、X/Twitterの動画付きポスト）から、動画を見なくても内容が分かる単一HTMLスライドを生成する。文字起こしは Gemini API（Windows/macOS/Linux）か Apple SpeechAnalyzer（macOS 26+・ローカル完結）を選択。ffmpegの場面フレーム抽出とコンタクトシートで、スライド投影型は全スライドを取り込み、外国語動画は日本語化する。",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "author": {
     "name": "Shintaro Tajiri",
     "email": "shintajiri@gmail.com"
