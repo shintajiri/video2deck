@@ -94,15 +94,25 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, check=True, capture_output=True, text=True, errors="replace")
 
 
-def to_m4a(src: pathlib.Path, dst: pathlib.Path, ss: float | None = None,
-           dur: float | None = None) -> pathlib.Path:
-    """音声を 64kbps モノラル m4a に変換（必要なら区間を切り出す）。動画を渡してもよい。"""
+AUDIO_MIME = "audio/mpeg"   # 中間ファイルは mp3。Files API 側にも生成側にも同じ型を渡す
+
+
+def to_audio(src: pathlib.Path, dst: pathlib.Path, ss: float | None = None,
+             dur: float | None = None) -> pathlib.Path:
+    """音声を 48kbps モノラル mp3 に変換（必要なら区間を切り出す）。動画を渡してもよい。
+
+    以前は 64kbps の m4a（AAC）だったが、2026-09-26 に **55分以上の m4a を Files API 経由で送ると
+    HTTP 400 INVALID_ARGUMENT** になった（40分は通る。同じ104分の音声を mp3 にすると通る。
+    プロンプトを短くしても・thinkingConfig を外しても・別モデルに変えても m4a は落ちる）。
+    API 側の変更と見られる。mp3 は 9.5 時間でも 200MB 程度で Files API の上限内。
+    """
     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostats", "-y"]
     if ss is not None:
         cmd += ["-ss", str(ss)]
     if dur is not None:
         cmd += ["-t", str(dur)]
-    cmd += ["-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-b:a", "64k", str(dst)]
+    cmd += ["-i", str(src), "-vn", "-ac", "1", "-ar", "16000",
+            "-c:a", "libmp3lame", "-b:a", "48k", str(dst)]
     run(cmd)
     return dst
 
@@ -115,7 +125,7 @@ def duration_sec(p: pathlib.Path) -> float:
 
 def upload_file(path: pathlib.Path, key: str) -> str:
     """Files API に再開可能アップロードし、ACTIVE になった file の URI を返す。"""
-    mime = mimetypes.guess_type(path.name)[0] or "audio/mp4"
+    mime = AUDIO_MIME   # mimetypes に任せない（macOS は .m4a を audio/mp4a-latm と返す）
     size = path.stat().st_size
     start = urllib.request.Request(
         f"{UPLOAD}?key={key}",
@@ -166,10 +176,9 @@ def delete_file(uri: str, key: str) -> None:
 def call(model: str, audio: pathlib.Path | None, prompt: str, key: str,
          file_uri: str | None = None) -> tuple[str, dict]:
     if file_uri:
-        part = {"fileData": {"mimeType": "audio/mp4", "fileUri": file_uri}}
+        part = {"fileData": {"mimeType": AUDIO_MIME, "fileUri": file_uri}}
     else:
-        mime = mimetypes.guess_type(audio.name)[0] or "audio/mp4"
-        part = {"inlineData": {"mimeType": mime,
+        part = {"inlineData": {"mimeType": AUDIO_MIME,
                                "data": base64.b64encode(audio.read_bytes()).decode()}}
     body = {
         "contents": [{"parts": [{"text": prompt}, part]}],
@@ -241,7 +250,7 @@ def main() -> int:
         prompt = PROMPT.format(lang=LANG_NAMES.get(a.lang, a.lang))
 
     total = duration_sec(a.input)
-    whole = to_m4a(a.input, work / "all.m4a")
+    whole = to_audio(a.input, work / "all.mp3")
     t0 = time.time()
     size = whole.stat().st_size
     uploaded_uri = None
@@ -272,7 +281,7 @@ def main() -> int:
             ss = i * (CHUNK_SEC - OVERLAP_SEC)
             if ss >= total:
                 break
-            c = to_m4a(a.input, work / f"c{i}.m4a", ss=ss, dur=CHUNK_SEC)
+            c = to_audio(a.input, work / f"c{i}.mp3", ss=ss, dur=CHUNK_SEC)
             print(f"  [{i + 1}/{n}] {ss // 60:.0f}分〜 を送信 ({c.stat().st_size / 1024 / 1024:.1f} MB)")
             t, u = call(a.model, c, prompt, key)
             parts.append(shift(t, int(ss)) if i else t)
