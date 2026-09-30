@@ -37,7 +37,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 4.5vh 5vw 7vh;
+  padding: 4.5vh 4vw 7vh;
   background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
@@ -59,15 +59,18 @@ body {
 }
 .slide h2 .em { color: var(--blue); }
 
-/* 画像 + 要点の2カラム */
+/* 画像 + 要点の2カラム。
+   2026-10-01: 画像が幅の半分ほどしかなく、投影スライドの小さい文字（表の数値・注記）が
+   読めなかった。画像を約2/3幅に広げ、要点は1行25〜30字の細い列にする（和文が読みやすい行長）。
+   .text-wide（要点が多いとき）も画像を主役のまま、要点列を少し広げるだけにする。 */
 .content {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  gap: clamp(20px, 3vw, 48px);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: clamp(20px, 2.4vw, 40px);
   align-items: center;
   flex: 1;
 }
-.content.text-wide { grid-template-columns: 1fr 1.3fr; }
+.content.text-wide { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
 
 .shot {
   width: 100%;
@@ -78,18 +81,24 @@ body {
   display: block;
 }
 
-.points { font-size: clamp(14px, 1.45vw, 20px); }
+/* 細い列でも読めるよう、字は大きめのまま行間を広げ、項目間に余白を取る */
+.points {
+  font-size: clamp(15px, 1.15vw, 18px);
+  line-height: 1.75;
+  letter-spacing: .02em;
+  color: #3c4043;
+}
 .points li {
   list-style: none;
   position: relative;
-  padding-left: 1.5em;
-  margin-bottom: .85em;
+  padding-left: 1.3em;
+  margin-bottom: 1em;
 }
 .points li::before {
   content: "";
   position: absolute;
-  left: 0; top: .62em;
-  width: .55em; height: .55em;
+  left: 0; top: .7em;
+  width: .5em; height: .5em;
   border-radius: 2px;
   background: var(--blue);
 }
